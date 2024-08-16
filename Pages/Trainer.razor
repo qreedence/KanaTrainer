@@ -1,0 +1,464 @@
+﻿@page "/trainer"
+@inject IJSRuntime JS
+
+@if (GameActive == false && ShowResults == false)
+{
+    <div class="options">
+        <h1>Options</h1>
+        <h2>Select which kana to practice</h2>
+        <EditForm Model="Categories" OnValidSubmit="HandleSubmit">
+            <div class="kana-checkboxes">
+                <div>
+                    <div>
+                        <button @onclick="ToggleAllHiragana" type="button">All Hiragana</button>
+                    </div>
+                    <div>
+                        <InputCheckbox @bind-Value="IsHiraganaSelected" /><label>Hiragana</label><label class="kana-regular">へ</label>
+                    </div>
+                    <div>
+                        <InputCheckbox @bind-Value="IsHiraganaDakuonSelected" /><label>Hiragana Dakuon</label><label class="kana-regular">べ</label>
+                    </div>
+                    <div>
+                        <InputCheckbox @bind-Value="IsHiraganaHandakuonSelected" /><label>Hiragana Handakuon</label><label class="kana-regular">ぺ</label>
+                    </div>
+                    <div>
+                        <InputCheckbox @bind-Value="IsHiraganaYoonSelected" /><label>Hiragana Yōon</label><label class="kana-regular">ひゃ</label>
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <button @onclick="ToggleAllKatakana" type="button">All Katakana</button>
+                    </div>
+                    <div>
+                        <InputCheckbox @bind-Value="IsKatakanaSelected" /><label>Katakana</label><label class="kana-regular">へ</label>
+                    </div>
+                    <div>
+                        <InputCheckbox @bind-Value="IsKatakanaDakuonSelected" /><label>Katakana Dakuon</label><label class="kana-regular">べ</label>
+
+                    </div>
+                    <div>
+                        <InputCheckbox @bind-Value="IsKatakanaHandakuonSelected" /><label>Katakana Handakuon</label><label class="kana-regular">ぺ</label>
+                    </div>
+                    <div>
+                        <InputCheckbox @bind-Value="IsKatakanaYoonSelected" /><label>Katakana Yōon</label><label class="kana-regular">ヒャ</label>
+                    </div>
+                </div>
+                
+            </div>
+            <div>
+                <h2>Select font</h2>
+                <div class="flex-row">
+                    @if (SelectedFont == "noto")
+                    {
+                        <button @onclick='() => SelectFont("noto")' type="button" class="noto selected">うにおきなが</button>
+                    }
+                    else
+                    {
+                        <button @onclick='() => SelectFont("noto")' type="button" class="noto">うにおきなが</button>
+                    }
+                    @if (SelectedFont == "cactus")
+                    {
+                        <button @onclick='() => SelectFont("cactus")' type="button" class="cactus selected">うにおきなが</button>
+                    }
+                    else
+                    {
+                        <button @onclick='() => SelectFont("cactus")' type="button" class="cactus">うにおきなが</button>
+                    }
+                    @if (SelectedFont == "dela")
+                    {
+                        <button @onclick='() => SelectFont("dela")' type="button" class="dela selected">うにおきなが</button>
+                    }
+                    else
+                    {
+                        <button @onclick='() => SelectFont("dela")' type="button" class="dela">うにおきなが</button>
+                    }
+                </div>
+            </div>
+            <div>
+                <h2>Select total time</h2>
+                <label>Time: @TotalMinutes minutes</label><br />
+                <div class="flex-row">
+                    <input type="range" @bind="TotalMinutes" min="1" max="5" step="1" disabled="@IsEndlessModeEnabled" />
+                    <label>Endless</label>
+                    <InputCheckbox @bind-Value="IsEndlessModeEnabled" />
+                </div>
+
+            </div>
+            
+            @if (ErrorMessage != "")
+            {
+                <p>@ErrorMessage</p>
+            }
+            <button class="bottom-button" type="submit">Start</button>
+        </EditForm>
+    </div>
+}
+else if (GameActive == true && ShowResults == false)
+{
+    <div class="trainer-game">
+        <div class="previous">
+            <h2>@PreviousKana</h2>
+            <h2>@PreviousKanaTyped</h2>
+        </div>
+        <div class="trainer-game-main">
+            <div class="hud">
+                @if (IsEndlessModeEnabled == false)
+                {
+                    <div><h1 class="timer">@FormatTime(RemainingTime)</h1></div>
+                }
+                <div><h1>Combo: x @CurrentCombo</h1></div>
+@*                 <div>Max Combo: @MaxCombo</div> *@
+            </div>
+           
+            <div>
+                <h2 class="@SelectedFont kana">@CurrentKana</h2>
+            </div>
+            <div class="typing-field">
+                <h4>@PlayerTypingField <span class="blink accent">|</span></h4>
+            </div>
+            <div class="flex-row">
+                <button @onclick="ToggleSounds">
+                    @if (PlaySounds == true)
+                    {
+                        <span class="material-symbols-outlined">
+                            volume_up
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="material-symbols-outlined">
+                            volume_off
+                        </span>
+                    }
+                </button>
+                <button @onclick="Skip">Skip</button>
+                <button @onclick="EndGame" class="caution">End Game</button>
+            </div>
+        </div>
+    </div>
+}
+else if(ShowResults == true)
+{
+    <div class="options results">
+        <h1>RESULTS</h1>
+        <h2>Total: @TotalCorrect</h2>
+        <h2>Errors: @TotalErrors</h2>
+        <h2></h2>
+        <h2>Accuracy: @Accuracy.ToString("F1") %</h2>
+        <h2>Max Combo: @MaxCombo</h2>
+        <button @onclick="Reset">Back</button>
+    </div>
+
+}
+
+@code {
+    private DotNetObjectReference<Trainer> _dotNetHelper;
+    public List<Kana> Kanas = new List<Kana>();
+
+    public List<string> Categories = new List<string>();
+
+    public bool IsHiraganaSelected { get; set; }
+    public bool IsHiraganaDakuonSelected { get; set; }
+    public bool IsHiraganaHandakuonSelected { get; set; }
+    public bool IsHiraganaYoonSelected { get; set; }
+
+    public bool IsKatakanaSelected { get; set; }
+    public bool IsKatakanaDakuonSelected { get; set; }
+    public bool IsKatakanaHandakuonSelected { get; set; }
+    public bool IsKatakanaYoonSelected { get; set; }
+
+    public bool IsEndlessModeEnabled { get; set; }
+    public string SelectedFont { get; set; } = "";
+    public string ErrorMessage { get; set; } = "";
+
+    public bool GameActive { get; set; } = false;
+    public bool ShowResults { get; set; } = false;
+
+    public int TotalMinutes { get; set; }
+    public string CurrentKana { get; set; } = "";
+
+    public string PreviousKana { get; set; } = "";
+    public string PreviousKanaTyped { get; set; } = "";
+
+    public int CurrentKanaIndex { get; set; }
+    public int PreviousKanaIndex { get; set; }
+    public string PlayerTypingField { get; set; } = "";
+    public int RemainingTime { get; set; }
+    public int CurrentCombo { get; set; }
+    public int MaxCombo { get; set; }
+    public int TotalErrors { get; set; }
+    public int TotalCorrect { get; set; }
+    public bool PlaySounds { get; set; }
+    public double Accuracy { get; set; }
+
+    private Timer _timer;
+
+    private CancellationTokenSource _cancellationTokenSource;
+
+    protected override void OnInitialized()
+    {
+        _dotNetHelper = DotNetObjectReference.Create(this);
+    }
+
+    private async Task HandleSubmit()
+    {
+        // Recreate _dotNetHelper to avoid using a disposed object
+        _dotNetHelper?.Dispose();
+        _dotNetHelper = DotNetObjectReference.Create(this);
+
+        Categories.Clear();
+        if (IsHiraganaSelected) Categories.Add("Hiragana");
+        if (IsHiraganaDakuonSelected) Categories.Add("Hiragana Dakuon");
+        if (IsHiraganaHandakuonSelected) Categories.Add("Hiragana Handakuon");
+        if (IsHiraganaYoonSelected) Categories.Add("Hiragana Yōon");
+        if (IsKatakanaSelected) Categories.Add("Katakana");
+        if (IsKatakanaDakuonSelected) Categories.Add("Katakana Dakuon");
+        if (IsKatakanaHandakuonSelected) Categories.Add("Katakana Handakuon");
+        if (IsKatakanaYoonSelected) Categories.Add("Katakana Yōon");
+
+        if (Categories.Count >= 1)
+        {
+            var kanaSet = new HashSet<Kana>();
+
+            foreach (var category in Categories)
+            {
+                var kanaList = await KanaRepo.GetAllOfType(category);
+                foreach (var kana in kanaList)
+                {
+                    kanaSet.Add(kana);
+                }
+            }
+
+            Kanas = kanaSet.ToList();
+            GameActive = true;
+
+            if (IsEndlessModeEnabled)
+            {
+                RemainingTime = 99999;
+            }
+            else
+            {
+                RemainingTime = TotalMinutes * 60;
+            }
+
+            _cancellationTokenSource = new CancellationTokenSource();
+
+            if (Kanas.Count > 0)
+            {
+                Random random = new Random();
+                CurrentKanaIndex = random.Next(Kanas.Count);
+                CurrentKana = Kanas[CurrentKanaIndex].KanaOriginal;
+                PlayerTypingField = "";
+            }
+
+            _timer = new Timer(TimerTick, null, 1000, 1000);
+            if (_dotNetHelper != null)
+            {
+                await JS.InvokeVoidAsync("addKeyboardListener", _dotNetHelper);
+            }
+
+            StateHasChanged();
+        }
+        else
+        {
+            ErrorMessage = "Please choose at least 1 category";
+            StateHasChanged();
+        }
+    }
+
+    private async void TimerTick(object state)
+    {
+        try
+        {
+            if (!GameActive || RemainingTime <= 0)
+            {
+                await InvokeAsync(EndGame);
+                return;
+            }
+
+            RemainingTime--;
+            await InvokeAsync(StateHasChanged);
+
+            if (RemainingTime == 0)
+            {
+                await InvokeAsync(EndGame);
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // Handle the task cancellation here if needed
+        }
+        catch (Exception ex)
+        {
+            // Handle other potential exceptions
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    [JSInvokable]
+    public void HandleKeyDown(string key)
+    {
+        if (GameActive)
+        {
+            // Add the new key to the player's typing field
+            PlayerTypingField += key;
+            StateHasChanged();
+            if (PlaySounds == true)
+            {
+                PlayKeyboardSound();
+            }
+
+
+            // Check if the current input matches the correct Romaji so far
+            string correctRomaji = Kanas[CurrentKanaIndex].KanaRomaji;
+
+            // If the input length exceeds the correct Romaji or doesn't match, it's an error
+            if (!correctRomaji.StartsWith(PlayerTypingField))
+            {
+                // Count the error, reset the typing field, and combo
+                PlayerTypingField = "";
+                CurrentCombo = 0;
+                TotalErrors++;
+                JS.InvokeVoidAsync("triggerShakeAnimation");
+                if (PlaySounds == true)
+                {
+                    PlayErrorSound();
+                }
+                StateHasChanged();
+            }
+            // If the input matches the full Romaji, it's correct
+            else if (PlayerTypingField == correctRomaji)
+            {
+                // Count the correct input, increase combo, and update max combo
+                TotalCorrect++;
+                CurrentCombo++;
+                MaxCombo = Math.Max(MaxCombo, CurrentCombo);
+                if(PlaySounds == true)
+                {
+                    PlayCorrectSound();
+                }
+                PreviousKana = CurrentKana;
+                PreviousKanaTyped = PlayerTypingField;
+                JS.InvokeVoidAsync("triggerPreviousAnimation");
+
+                // Get a new Kana and reset the typing field
+                Random random = new Random();
+                int newKanaIndex;
+
+                do
+                {
+                    newKanaIndex = random.Next(Kanas.Count);
+                } while (newKanaIndex == CurrentKanaIndex);
+
+                CurrentKanaIndex = newKanaIndex;
+                CurrentKana = Kanas[CurrentKanaIndex].KanaOriginal;
+                PlayerTypingField = "";
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task EndGame()
+    {
+        GameActive = false;
+        _cancellationTokenSource?.Cancel();
+        _timer?.Dispose();
+        await JS.InvokeVoidAsync("removeKeyboardListener");
+        _dotNetHelper?.Dispose();
+        Accuracy = (double)TotalCorrect / (TotalCorrect + TotalErrors) * 100;
+        ShowResults = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void Reset()
+    {
+        ShowResults = false;
+        TotalErrors = 0;
+        TotalCorrect = 0;
+        CurrentCombo = 0;
+        MaxCombo = 0;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private string FormatTime(int totalSeconds)
+    {
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+        return $"{minutes}m {seconds:D2}s";
+    }
+
+    private async Task PlayKeyboardSound()
+    {
+        await JS.InvokeVoidAsync("playRandomKeyboardSound");
+    }
+
+    private async Task PlayErrorSound()
+    {
+        await JS.InvokeVoidAsync("playRandomErrorSound");
+    }
+
+    private async Task PlayCorrectSound()
+    {
+        await JS.InvokeVoidAsync("playRandomCorrectSound");
+    }
+
+    private void SelectFont(string font)
+    {
+        SelectedFont = font;
+        StateHasChanged();
+    }
+
+    private void ToggleSounds()
+    {
+        if (PlaySounds == true)
+        {
+            PlaySounds = false;
+        }
+        else
+        {
+            PlaySounds = true;
+        }
+    }
+
+    private void ToggleAllHiragana()
+    {
+        bool newState = !IsHiraganaSelected;
+        IsHiraganaSelected = newState;
+        IsHiraganaDakuonSelected = newState;
+        IsHiraganaHandakuonSelected = newState;
+        IsHiraganaYoonSelected = newState;
+    }
+
+    private void ToggleAllKatakana()
+    {
+        bool newState = !IsKatakanaSelected;
+        IsKatakanaSelected = newState;
+        IsKatakanaDakuonSelected = newState;
+        IsKatakanaHandakuonSelected = newState;
+        IsKatakanaYoonSelected = newState;
+    }
+
+    private void Skip()
+    {
+        PlayerTypingField = "";
+        CurrentCombo = 0;
+        TotalErrors++;
+
+        PreviousKana = CurrentKana;
+        PreviousKanaTyped = Kanas[CurrentKanaIndex].KanaRomaji;
+        JS.InvokeVoidAsync("triggerPreviousAnimation");
+
+        Random random = new Random();
+        int newKanaIndex;
+
+        do
+        {
+            newKanaIndex = random.Next(Kanas.Count);
+        } while (newKanaIndex == CurrentKanaIndex);
+
+        CurrentKanaIndex = newKanaIndex;
+        CurrentKana = Kanas[CurrentKanaIndex].KanaOriginal;
+        PlayerTypingField = "";
+        StateHasChanged();
+    }
+}

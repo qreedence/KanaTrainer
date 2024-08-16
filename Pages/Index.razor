@@ -1,0 +1,11 @@
+﻿@page "/"
+@inject NavigationManager NavigationManager
+
+@* <NavLink href="/trainer"><button>Play</button></NavLink> *@
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        NavigationManager.NavigateTo("/trainer");
+    }
+}

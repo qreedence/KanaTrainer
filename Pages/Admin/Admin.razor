@@ -1,0 +1,60 @@
+﻿@page "/admin"
+
+<h2>List of Kanas</h2>
+@if (Kanas == null)
+{
+    <p>Loading...</p>
+}
+else if (Kanas.Count == 0)
+{
+    <p>No kanas found in database.</p>
+}
+else
+{
+    <table>
+    <tr>
+        <th>Kana</th>
+        <th>Romaji</th>
+        <th>Type</th>
+    </tr>
+    @foreach(var kana in Kanas)
+    {
+        <tr>
+            <td>@kana.KanaOriginal</td>
+            <td>@kana.KanaRomaji</td>
+            <td>@kana.KanaType</td>
+        </tr>
+    }
+    </table>
+}
+
+<button @onclick="ToggleShowAdd">Add new kana</button>
+@if (ShowAdd == true)
+{
+    <AddKanas></AddKanas>
+}
+
+
+@code {
+    List<Kana> Kanas = null;
+
+    public bool ShowAdd = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Kanas = await KanaRepo.GetAllAsync();
+        Kanas = Kanas.OrderBy(x => x.KanaType).ToList();
+    }
+
+    public void ToggleShowAdd()
+    {
+        if (ShowAdd == true)
+        {
+            ShowAdd = false;
+        }
+        else
+        {
+            ShowAdd = true;
+        }
+    }
+}

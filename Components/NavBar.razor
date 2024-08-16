@@ -1,0 +1,61 @@
+﻿@inject IJSRuntime JS
+
+<div class="navbar">
+    <div class="nav-left">
+        <NavLink href="/" class="logo"><span class="kana-logo">かな</span><span class="logo-text">Trainer</span></NavLink>
+    </div>
+    <div class="nav-right">
+        <div class="darkmode">
+            <label>Dark Mode</label>
+            <button class="darkmode-btn" @onclick="ToggleDarkMode">
+                @if (_currentTheme == "dark")
+                {
+                    <span class="material-symbols-outlined">
+                        toggle_on
+                    </span>
+                }
+                else
+                {
+                    <span class="material-symbols-outlined">
+                        toggle_off
+                    </span>
+                }
+            </button>
+        </div>
+    </div>
+</div>
+
+
+@code {
+    private string _currentTheme = "dark";
+    private bool _initialized;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Load the theme from localStorage when the component is rendered
+            _currentTheme = await JS.InvokeAsync<string>("localStorage.getItem", "theme") ?? "dark";
+            SetTheme(_currentTheme);
+            _initialized = true;
+        }
+    }
+
+    private async Task ToggleDarkMode()
+    {
+        if (!_initialized) return;
+
+        _currentTheme = _currentTheme == "dark" ? "light" : "dark";
+
+        // Apply the theme by setting the data-theme attribute
+        SetTheme(_currentTheme);
+
+        // Store the selected theme in localStorage
+        await JS.InvokeVoidAsync("localStorage.setItem", "theme", _currentTheme);
+    }
+
+    private void SetTheme(string theme)
+    {
+        JS.InvokeVoidAsync("document.documentElement.setAttribute", "data-theme", theme);
+    }
+}

@@ -1,0 +1,36 @@
+﻿@if (Kana != null)
+{
+    <EditForm class="form edit" Model="Kana" OnSubmit="Submit" FormName="AddKana">
+        <h3>Add New Kana</h3>
+        <div>
+            <label>Kana</label>
+            <InputText @bind-Value="Kana.KanaOriginal"></InputText>
+        </div>
+        <div>
+            <label>Romaji</label>
+            <InputText @bind-Value="Kana.KanaRomaji"></InputText>
+        </div>
+        <div>
+            <label>Type</label>
+            <InputSelect @bind-Value="Kana.KanaType">
+                <option value="Hiragana">Hiragana</option>
+                <option value="Katakana">Katakana</option>
+            </InputSelect>
+        </div>
+        <button type="submit">Add kana</button>
+    </EditForm>
+}
+
+@code {
+    public Kana Kana { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Kana = new Kana();
+    }
+
+    public async Task Submit()
+    {
+        await KanaRepo.AddAsync(Kana);
+    }
+}
